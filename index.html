@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+  <head>
+    <meta charset="utf-8">
+    <link rel="stylesheet" type="text/css" href="css/main.css" />
+  </head>
+  <body>
+
+    Number of Rooms Wide <input type="text" id="wide" value="40"><br>
+    Number of Rooms Long <input type="text" id="long" value="40"><br>
+    Room Size Min <input type="text" id="min" value="2"><br>
+    Room Size Max <input type="text" id="max" value="7"><br>
+    Speed <input type="range" min="10" max="3000" value="1000" class="slider" id="speed">
+    <span id="speedValue"></span>
+    <br>
+
+    <button onclick="continueProcess()">Continue to the next step</button><br>
+    <button onclick="start()">Start/Restart</button><br>
+    <br>
+
+    <canvas id="canvas" width="1000" height="1000"></canvas>
+
+  <script type="text/javascript" src="scripts/dungeon_generator.js"></script>
+  </body>
+</html>
