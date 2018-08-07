@@ -12,6 +12,7 @@ var numrooms = 40;
 var roomSize = 10;
 
 var colorSwatch = ['rgb(140,229,95)', 'rgb(65,105,225)', 'rgb(0,0,220)', 'rgb(255,0,63)', 'rgb(255,242,91)'];
+var other = ['rgb(165,190,0)', 'rgb(184,242,230)', 'rgb(255,166,158)', 'rgb(255,147,79)'];
 var black = 'rgb(0,0,0)';
 var white = 'rgb(255, 255, 255)';
 var step = 0;
@@ -147,7 +148,6 @@ async function createRandomMaze(gameMap) {
   var startLocation = findStartPoint(gameMap);
   var stackOfRoomsToCheck = [];
   stackOfRoomsToCheck.push(startLocation);
-  var x = 0;
 
   while (startLocation != null) {
     await createRoute(gameMap, stackOfRoomsToCheck);
@@ -162,7 +162,6 @@ async function createRandomMaze(gameMap) {
 async function createRoute(gameMap, stackOfRoomsToCheck) {
   var location;
   var locationsToCheck;
-  var x = 0;
 
   while(stackOfRoomsToCheck.length > 0) {
       location = stackOfRoomsToCheck.pop();
@@ -282,6 +281,127 @@ function findStartPoint(gameMap) {
   return null;
 }
 
+async function connectRooms(gameMap) {
+
+  for (var room of gameMap.listOfRooms) {
+      // 4 sides so 4 possible opening per room
+      var numberOfOpenings = Math.floor(Math.random() * 4);
+      var listOfOpeningToUse = []
+      var listOfOpeningChoices = [];
+      var openingToUse = 0;
+      var xToStart = 0;
+      var yToStart = 0;
+
+      numberOfOpenings = numberOfOpenings == 0 ? 1 : numberOfOpenings;
+
+      // top side
+      xToStart = room.location.x;
+      yToStart = room.location.y - 2;
+
+      for (var x = xToStart; x < xToStart + room.width; x++) {
+        if (yToStart <= 0) {
+          break;
+        }
+
+        // if a tunnel is found add to the choices
+        if (gameMap.mapSpace[yToStart][x] == 1) {
+          listOfOpeningChoices.push(new Point(x, yToStart + 1));
+        }
+      }
+
+      if (listOfOpeningChoices.length > 0) {
+        openingToUse = Math.floor(Math.random() * listOfOpeningChoices.length);
+        listOfOpeningToUse.push(listOfOpeningChoices[openingToUse]);
+      }
+
+      listOfOpeningChoices = [];
+
+
+      // left side
+      xToStart = room.location.x - 2;
+      yToStart = room.location.y ;
+      for (var y = yToStart; y < yToStart + room.length; y++) {
+        if (xToStart <= 0) {
+          break;
+        }
+
+        // if a tunnel is found add to the choices
+        if (gameMap.mapSpace[y][xToStart] == 1) {
+          listOfOpeningChoices.push(new Point(xToStart + 1, y));
+        }
+      }
+
+      if (listOfOpeningChoices.length > 0) {
+        openingToUse = Math.floor(Math.random() * listOfOpeningChoices.length);
+        listOfOpeningToUse.push(listOfOpeningChoices[openingToUse]);
+      }
+
+      listOfOpeningChoices = [];
+
+
+      // bottom side
+      xToStart = room.location.x;
+      yToStart = room.location.y + room.length + 1;
+      for (var x = xToStart; x < xToStart + room.width; x++) {
+        if (yToStart >= gameMap.length - 1) {
+          break;
+        }
+
+        // if a tunnel is found add to the choices
+        if (gameMap.mapSpace[yToStart][x] == 1) {
+          listOfOpeningChoices.push(new Point(x, yToStart - 1));
+        }
+      }
+
+      if (listOfOpeningChoices.length > 0) {
+        openingToUse = Math.floor(Math.random() * listOfOpeningChoices.length);
+        listOfOpeningToUse.push(listOfOpeningChoices[openingToUse]);
+      }
+
+      listOfOpeningChoices = [];
+
+
+      // right side
+      xToStart = room.location.x + room.width + 1;
+      yToStart = room.location.y;
+      for (var y = yToStart; y < yToStart + room.length; y++) {
+        if (xToStart >= gameMap.width - 1) {
+          break;
+        }
+        // if a tunnel is found add to the choices
+        if (gameMap.mapSpace[y][xToStart] == 1) {
+          listOfOpeningChoices.push(new Point(xToStart - 1, y));
+        }
+      }
+
+      if (listOfOpeningChoices.length > 0) {
+        openingToUse = Math.floor(Math.random() * listOfOpeningChoices.length);
+        listOfOpeningToUse.push(listOfOpeningChoices[openingToUse]);
+      }
+
+      listOfOpeningChoices = [];
+
+      // shuffle openings
+      listOfOpeningToUse = shuffle(listOfOpeningToUse);
+      for (var i = 0; i < Math.min(numberOfOpenings, listOfOpeningToUse.length); i++) {
+        console.log(listOfOpeningToUse);
+        var x = listOfOpeningToUse[i].x;
+        var y = listOfOpeningToUse[i].y;
+        gameMap.mapSpace[y][x] = 1;
+        drawBlock(listOfOpeningToUse[i], white);
+        await sleep(sleepTime);
+      }
+  }
+}
+
+function shuffle(a) {
+    for (let i = a.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+}
+
 
 async function createRooms(numRooms, gameMap) {
   // create rooms
@@ -319,6 +439,11 @@ function continueProcess() {
 
     case 2:
       createRandomMaze(gameMap);
+      step++;
+      break;
+
+    case 3:
+      connectRooms(gameMap);
       step++;
       break;
   }
