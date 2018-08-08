@@ -134,7 +134,7 @@ function drawRoom(room) {
   var ctx = canvas.getContext('2d');
   ctx.fillStyle = room.color;
   ctx.fillRect(room.location.x * roomSize, room.location.y * roomSize, room.width * roomSize, room.length * roomSize);
-};
+}
 
 
 // this creates a map of all unused blocks in the game (aka solid space)
@@ -427,6 +427,7 @@ async function trimPassageWays(gameMap) {
     for (var deadEndLocation of deadEnds) {
       gameMap.mapSpace[deadEndLocation.y][deadEndLocation.x] = BLOCK_TYPE.SOLID;
       drawBlock(deadEndLocation, black);
+      await sleep(sleepTime);
     }
 
     deadEnds = findDeadEnds(gameMap);
