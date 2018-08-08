@@ -1,6 +1,6 @@
 // game map
 // 2 is for room
-// 1 is for tunnel
+// 1 is for passageway
 
 var canvas = document.getElementById('canvas');
 var numRoomWide = 40;
@@ -17,6 +17,22 @@ var black = 'rgb(0,0,0)';
 var white = 'rgb(255, 255, 255)';
 var step = 0;
 var sleepTime = 1000;
+
+var BLOCK_TYPE = {
+  SOLID: 0,
+  PASSAGEWAY: 1,
+  ROOM: 2,
+  ROOM_DOOR: 3,
+  DEAD_END: 4,
+  NOT_BLOCK: 5,
+};
+
+var CARDINAL_DIRECTION = {
+  NORTH: 0,
+  EAST: 1,
+  SOUTH: 2,
+  WEST: 3,
+};
 
 function Point(x, y) {
   this.x = x;
@@ -65,7 +81,8 @@ function Map(width, length, roomSizeMin, roomSizeMax) {
   for (var i = 0; i < length; i++) {
     this.mapSpace[i] = new Array(width);
     for (var j = 0; j < width; j++) {
-      this.mapSpace[i][j] = 0;
+      console.log("solid : " + BLOCK_TYPE.SOLID);
+      this.mapSpace[i][j] = BLOCK_TYPE.SOLID;
     }
   }
 
@@ -74,7 +91,7 @@ function Map(width, length, roomSizeMin, roomSizeMax) {
 
     for (var row = room.location.y; row < (room.location.y + room.length); row++) {
       for (var col = room.location.x; col < (room.location.x + room.width); col++) {
-        this.mapSpace[row][col] = 2;
+        this.mapSpace[row][col] = BLOCK_TYPE.ROOM;
       }
     }
   };
@@ -128,10 +145,10 @@ function findUnvisitedCells(gameMap) {
     for (var j = 0; j < gameMap.length; j++) {
       roomToDraw.location.x = i;
       roomToDraw.location.y = j;
-      if (gameMap.mapSpace[j][i] == 2) {
+      if (gameMap.mapSpace[j][i] == BLOCK_TYPE.ROOM) {
         roomToDraw.color = white;
       }
-      else if (gameMap.mapSpace[j][i] != 0){
+      else if (gameMap.mapSpace[j][i] != BLOCK_TYPE.SOLID){
         roomToDraw.color = 'rgb(200,0,0)';
       }
       else {
@@ -169,14 +186,15 @@ async function createRoute(gameMap, stackOfRoomsToCheck) {
         drawBlock(location, colorSwatch[3]);
         continue;
       }
-      gameMap.mapSpace[location.y][location.x] = 1;
+
+      gameMap.mapSpace[location.y][location.x] = BLOCK_TYPE.PASSAGEWAY;
 
       locationsToCheck = returnDirectionsToTravelForStack(gameMap, location);
       locationsToCheck.forEach(function check(loc) {
         drawBlock(loc, colorSwatch[1]);
       });
-      drawBlock(location, colorSwatch[0]);
 
+      drawBlock(location, colorSwatch[0]);
       stackOfRoomsToCheck = stackOfRoomsToCheck.concat(locationsToCheck);
 
       await sleep(sleepTime);
@@ -196,7 +214,7 @@ function returnDirectionsToTravelForStack(gameMap, location) {
   var locationToCheck, neighboringBlocks;
 
   for (var i = 0; i < 4; i++) {
-    locationToCheck = returnNewLocation(directionToLookFirst, location);
+    locationToCheck = returnNewLocationInDirectionSpecified(directionToLookFirst, location);
     directionToLookFirst = (directionToLookFirst + 1) % 4;
 
     neighboringBlocks = findNeigboringBlocks(gameMap, locationToCheck);
@@ -209,19 +227,19 @@ function returnDirectionsToTravelForStack(gameMap, location) {
 }
 
 
-function returnNewLocation(direction, location) {
+function returnNewLocationInDirectionSpecified(cardinal_direction, location) {
 
-  switch (direction) {
-    case 0:
+  switch (cardinal_direction) {
+    case CARDINAL_DIRECTION.NORTH:
       return new Point(location.x, location.y - 1);
-    case 1:
+    case CARDINAL_DIRECTION.EAST:
       return new Point(location.x + 1, location.y);
-    case 2:
+    case CARDINAL_DIRECTION.SOUTH:
       return new Point(location.x, location.y + 1);
-    case 3:
+    case CARDINAL_DIRECTION.WEST:
       return new Point(location.x - 1, location.y);
     default:
-      console.log("not a valid direction");
+      console.log("not a valid cardinal_direction");
   }
 }
 
@@ -230,7 +248,7 @@ function returnNewLocation(direction, location) {
 function findNeigboringBlocks(gameMap, location) {
   var neighboringBlocks = 0;
 
-  if (gameMap.mapSpace[location.y][location.x] == 1) {
+  if (gameMap.mapSpace[location.y][location.x] == BLOCK_TYPE.PASSAGEWAY) {
     return 8;
   }
 
@@ -387,7 +405,7 @@ async function connectRooms(gameMap) {
         console.log(listOfOpeningToUse);
         var x = listOfOpeningToUse[i].x;
         var y = listOfOpeningToUse[i].y;
-        gameMap.mapSpace[y][x] = 1;
+        gameMap.mapSpace[y][x] = BLOCK_TYPE.ROOM_DOOR;
         drawBlock(listOfOpeningToUse[i], white);
         await sleep(sleepTime);
       }
@@ -400,6 +418,93 @@ function shuffle(a) {
         [a[i], a[j]] = [a[j], a[i]];
     }
     return a;
+}
+
+async function trimPassageWays(gameMap) {
+  var deadEnds = findDeadEnds(gameMap);
+
+  while(deadEnds.length > 0) {
+    for (var deadEndLocation of deadEnds) {
+      gameMap.mapSpace[deadEndLocation.y][deadEndLocation.x] = BLOCK_TYPE.SOLID;
+      drawBlock(deadEndLocation, black);
+    }
+
+    deadEnds = findDeadEnds(gameMap);
+  }
+}
+
+
+function findDeadEnds(gameMap) {
+  var deadEnds = [];
+  var adjacentBlocks;
+
+  for (var x = 0; x < gameMap.width - 1; x++) {
+    for (var y = 0; y < gameMap.length - 1; y++) {
+      adjacentBlocks = getAdjacentBlocks(gameMap, new Point(x, y));
+      if (gameMap.mapSpace[y][x] == BLOCK_TYPE.PASSAGEWAY && adjacentBlocks == 1) {
+        deadEnds.push(new Point(x, y));
+      }
+    }
+  }
+
+  return deadEnds;
+}
+
+
+function cleanMap(gameMap) {
+  for (var x = 0; x < gameMap.width - 1; x++) {
+    for (var y = 0; y < gameMap.length - 1; y++) {
+      if (gameMap.mapSpace[y][x] == BLOCK_TYPE.SOLID) {
+        drawBlock(new Point(x, y), black);
+      }
+    }
+  }
+}
+
+
+function getAdjacentBlocks(gameMap, location) {
+  var sum = 0;
+  var blockToCheck;
+  var blockType;
+
+  for (var direction of Object.keys(CARDINAL_DIRECTION)) {
+    blockToCheck = returnNewLocationInDirectionSpecified(CARDINAL_DIRECTION[direction], location);
+    blocktype = returnBlockOrNullForOutOfBound(gameMap, blockToCheck);
+
+    if (blocktype != null) {
+      sum += gameMap.mapSpace[blockToCheck.y][blockToCheck.x];
+    }
+  }
+
+  return sum;
+}
+
+
+
+
+function returnBlocktypeLocation(gameMap, blocktype) {
+  // find start position (a passageway block)
+  for (var x = 0; x < gameMap.width; x++) {
+    for (var y = 0; y < gameMap.length; y++) {
+      if (gameMap.mapSpace[y][x] == blocktype) {
+        return new Point(x, y);
+      }
+    }
+  }
+
+  return null;
+}
+
+function returnBlockOrNullForOutOfBound(gameMap, location) {
+  if (location.x < 0 || location.x > gameMap.width - 1) {
+    return null
+  }
+
+  if (location.y < 0 || location.y > gameMap.length - 1) {
+    return null
+  }
+
+  return gameMap.mapSpace[location.y][location.x];
 }
 
 
@@ -444,6 +549,16 @@ function continueProcess() {
 
     case 3:
       connectRooms(gameMap);
+      step++;
+      break;
+
+    case 4:
+      cleanMap(gameMap);
+      step++;
+      break;
+
+    case 5:
+      trimPassageWays(gameMap);
       step++;
       break;
   }
